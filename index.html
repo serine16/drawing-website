@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Drawing App</title>
+    <style>
+        body { text-align: center; font-family: sans-serif; }
+        canvas { border: 2px solid #000; cursor: crosshair; }
+    </style>
+</head>
+<body>
+    <h1>🖌️My Drawing App🖌️</h1>
+    <label>Brush Size:
+        <input type="range" id="brushSize" min="1" max="50" value="5">
+    </label>
+
+    <label>color:
+        <input type="color" id="colorPicker" value="#000000">
+    </label>
+
+    <label>Brush Style:
+        <select id="brushSelector">
+            <option value="pen">🖊️ Pen</option>
+            <option value="spray">💨 Spray</option>
+            <option value="square">🔲 Square</option>
+        </select>
+    </label>
+
+    <button id="saveBtn">💾 Save PNG</button>
+
+    <canvas id="canvas" width="1000" height="800"></canvas>
+
+    <script>
+        let currentBrush = 'pen'; //default brush
+        let lastX = 0;
+        let lastY = 0;
+        let undoStack = [];
+        let redoStack = [];
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let drawing = false;
+        let brushSize = 5; // for now brush size is default
+        let currentColor = '#000000'; // for now color is default
+
+        canvas.addEventListener('mousedown', (e) => {
+            drawing = true;
+            lastX = e.offsetX;
+            lastY = e.offsetY;
+            saveState(); // Save canvas before new stroke
+        });
+
+        canvas.addEventListener('mouseup', () => drawing = false);
+        canvas.addEventListener('mouseout', () => drawing = false);
+        canvas.addEventListener('mousemove', draw);
+
+        function saveState() {
+            undoStack.push(canvas.toDataURL());
+            redoStack = []; // Clear redo history adter new draw
+        }
+
+        function draw(e) {
+            if (!drawing) return;
+
+            const x = e.offsetX;
+            const y = e.offsetY;
+
+            if (currentBrush === 'pen') {
+                ctx.lineWidth = brushSize;
+                ctx.lineCap = 'round';
+                ctx.strokeStyle = currentColor;
+
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
+                ctx.lineTo(x, y);
+                ctx.stroke();
+
+                [lastX, lastY] = [x, y];
+            } else if (currentBrush === 'spray') {
+                ctx.fillStyle = currentColor;
+                for (let i = 0; i < 20; i++) {
+                    const offsetX = (Math.random() - 0.5) * brushSize * 2;
+                    const offsetY = (Math.random() - 0.5) * brushSize * 2;
+                    ctx.fillRect(x + offsetX, y + offsetY, 1, 1);
+                }
+            } else if (currentBrush === 'square') {
+                ctx.fillStyle = currentColor;
+                ctx.fillRect(x - brushSize / 2, y - brushSize / 2, brushSize, brushSize)
+            }
+
+        }
+
+        
+
+        function undo() {
+            if (undoStack.length === 0) return;
+            redoStack.push(canvas.toDataURL());
+            let img = new Image();
+            img.src = undoStack.pop();
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+            };
+        }
+
+        function redo() {
+            if (redoStack.length === 0) return;
+            undoStack.push(canvas.toDataURL());
+            let img = new Image();
+            img.src = redoStack.pop();
+            img.onload = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+            };
+        }
+
+        document.getElementById('brushSize').addEventListener('input', (e) => {
+            brushSize = e.target.value;
+        });
+
+        document.getElementById('colorPicker').addEventListener('input', (e) => {
+            currentColor = e.target.value;
+        });
+
+        document.getElementById('brushSelector').addEventListener('change', (e) => {
+            currentBrush = e.target.value;
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'z') {
+                e.preventDefault(); // prevent browser undo
+                undo();
+            }
+            if (e.ctrlKey && e.key === 'u') {
+                e.preventDefault();
+                redo();
+            }
+        });
+
+        document.getElementById('saveBtn').addEventListener('click', () => {
+            const dataURL = canvas.toDataURL('image/png');
+            const a = document.createElement("a");
+            a.href = dataURL;
+            a.download = 'my-drawing.png';
+            a.click();
+        });
+
+    </script>
+
+</body>
+</html>
